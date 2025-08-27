@@ -1,0 +1,411 @@
+/* // src/app/globals.css */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.65rem;
+  --background: oklch(0.9519 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --card: oklch(0.9477 0.0052 247.88);
+  --card-foreground: oklch(0.141 0.005 285.823);
+  --popover: oklch(0.9477 0.0052 247.88);
+  --popover-foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.2456 0.0866 280.72);
+  --primary-foreground: oklch(0.982 0.018 155.826);
+  --secondary: oklch(0.6298 0.1895 261.48 / 40.05%);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.2456 0.0866 280.72);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.9544 0.0067 286.27);
+  --sidebar-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-primary: oklch(0.2456 0.0866 280.72);
+  --sidebar-primary-foreground: oklch(0.982 0.018 155.826);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-ring: oklch(0.2456 0.0866 280.72);
+
+  /* Novas cores personalizadas */
+  --electric: oklch(0.2564 0.0845 281.51); /* #1e1b4a */
+  --shock: oklch(0.4847 0.1749 353.77); /* #a32166 */
+  --deep: oklch(0.1591 0 0); /* #0D0D0D */
+  --purple: oklch(14.1% 0.043 285.823); /* #1e1b4a */
+
+  /* Cores Neon para o painel de métricas */
+  --neon-green: oklch(0.7 0.2 140);   /* Um verde vibrante */
+
+  /* Variáveis específicas para scrollbar */
+  --scrollbar-bg: oklch(0.95 0.002 286.32);
+  --scrollbar-thumb: oklch(0.8 0.01 286.32);
+  --scrollbar-thumb-hover: oklch(0.2456 0.0866 280.72);
+}
+
+.dark {
+  --background: oklch(0.1591 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.1662 0.0104 285.21);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.1662 0.0104 285.21);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.2456 0.0866 280.72);
+  --primary-foreground: oklch(0.6035 0.2082 261.48);
+  --secondary: oklch(0.6298 0.1895 261.48 / 40.05%);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.6298 0.1895 261.48 / 40.05%);
+  --muted-foreground: oklch(0.705 0.015 286.067);
+  --accent: oklch(0.6298 0.1895 261.48 / 40.05%);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(0.2795 0.0368 260.03 / 10%);
+  --input: oklch(0.2795 0.0368 260.03 / 15%);
+  --ring: oklch(0.527 0.154 150.069);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.2456 0.0866 280.72);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.1591 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.2456 0.0866 280.72);
+  --sidebar-primary-foreground: oklch(0.393 0.095 152.535);
+  --sidebar-accent: oklch(0.6298 0.1895 261.48 / 40.05%);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.2795 0.0368 260.03 / 10%);
+  --sidebar-ring: oklch(0.527 0.154 150.069);
+
+  /* Novas cores personalizadas para modo escuro  */
+  --electric: oklch(0.2564 0.0845 281.51); /* #1e1b4a */
+  --bebe: oklch(0.6298 0.1895 261.48); /* #4383fa */
+  --shock: oklch(0.4847 0.1749 353.77); /* #a32166 */
+  --deep: oklch(0.1591 0 0); /* #0D0D0D */
+  --purple: oklch(
+    14.1% 0.043 285.823
+  ); /* #1e1b4a
+
+  /* Cores Neon para o painel de métricas no modo escuro */
+  --neon-green: oklch(0.8 0.25 140); /* Verde um pouco mais claro para contraste */
+
+
+  /* Variáveis específicas para scrollbar no modo escuro */
+  --scrollbar-bg: oklch(0.18 0.006 285.885);
+  --scrollbar-thumb: oklch(0.35 0.008 286.033);
+  --scrollbar-thumb-hover: oklch(0.2456 0.0866 280.72);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-manrope);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  .text-neon-green {
+    color: var(--neon-green);
+  }
+}
+
+/* ================================
+   SCROLLBAR PERSONALIZADA
+   ================================ */
+
+/* Configuração geral da scrollbar */
+html {
+  scroll-behavior: smooth;
+}
+
+/* WebKit Browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-bg);
+  border-radius: calc(var(--radius) / 2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: calc(var(--radius) / 2);
+  border: 1px solid var(--scrollbar-bg);
+  transition: all 0.2s ease-in-out;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  transform: scale(1.1);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-hover);
+  opacity: 0.8;
+}
+
+/* Corner onde as scrollbars se encontram */
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-bg);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-bg);
+}
+
+/* Scrollbar hover para Firefox */
+@supports (scrollbar-color: red blue) {
+  * {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-bg);
+  }
+
+  *:hover {
+    scrollbar-color: var(--scrollbar-thumb-hover) var(--scrollbar-bg);
+  }
+}
+
+/* ================================
+   SCROLLBAR ESPECÍFICA PARA COMPONENTES
+   ================================ */
+
+/* Scrollbar mais fina para sidebar */
+.sidebar::-webkit-scrollbar,
+[data-sidebar]::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-thumb,
+[data-sidebar]::-webkit-scrollbar-thumb {
+  background: var(--sidebar-border);
+  border: none;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover,
+[data-sidebar]::-webkit-scrollbar-thumb:hover {
+  background: var(--sidebar-accent);
+}
+
+/* Scrollbar para componentes de dropdown/select */
+.dropdown-content::-webkit-scrollbar,
+.select-content::-webkit-scrollbar,
+[role="listbox"]::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dropdown-content::-webkit-scrollbar-thumb,
+.select-content::-webkit-scrollbar-thumb,
+[role="listbox"]::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 2px;
+  border: none;
+}
+
+/* Scrollbar para cards com overflow */
+.card-scrollable::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.card-scrollable::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.card-scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* ================================
+   ANIMAÇÕES SUAVES
+   ================================ */
+
+/* Transição suave para mudanças de tema */
+::-webkit-scrollbar-thumb {
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+::-webkit-scrollbar-track {
+  transition: background-color 0.2s ease;
+}
+
+/* ================================
+   MELHORIAS DE ACESSIBILIDADE
+   ================================ */
+
+/* Redução de movimento para usuários que preferem */
+@media (prefers-reduced-motion: reduce) {
+  ::-webkit-scrollbar-thumb {
+    transition: none;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    transform: none;
+  }
+}
+
+/* Contraste melhorado para usuários com necessidades especiais */
+@media (prefers-contrast: high) {
+  ::-webkit-scrollbar-thumb {
+    background: var(--foreground);
+    border: 2px solid var(--background);
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+    border: 1px solid var(--border);
+  }
+}
+
+/* ================================
+   UTILIDADES PARA COMPONENTES
+   ================================ */
+
+/* Classe para esconder scrollbar mas manter funcionalidade */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Classe para scrollbar sempre visível */
+.scrollbar-always {
+  overflow: auto !important;
+}
+
+.scrollbar-always::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+/* Classe para scrollbar style "floating" */
+.scrollbar-floating::-webkit-scrollbar {
+  width: 10px;
+  background: transparent;
+}
+
+.scrollbar-floating::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px;
+}
+
+.scrollbar-floating::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 10px;
+}
+
+.scrollbar-floating::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+/* Efeito de sombra para o ícone Crown */
+.drop-shadow-glow {
+  filter: drop-shadow(0 0 8px rgba(253, 230, 138, 0.7)) drop-shadow(0 0 20px rgba(253, 230, 138, 0.5));
+}
+
+/* Shimmer effect para o botão de upgrade */
+.upgrade-button-shimmer {
+  position: relative; /* Essencial para posicionar o pseudo-elemento */
+  overflow: hidden; /* Garante que o shimmer não vaze */
+  z-index: 1; /* Garante que o conteúdo esteja acima do shimmer */
+}
+
+.upgrade-button-shimmer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%; /* Começa fora da tela à esquerda */
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%, /* Brilho branco sutil */
+    transparent 100%
+  );
+  /* Previne transição inicial e aplica animação */
+  transition: none;
+  animation: shimmer 2s infinite linear;
+  animation-delay: 2s; /* Atraso antes do primeiro shimmer */
+  pointer-events: none; /* Permite que cliques passem através do shimmer */
+  z-index: 2; /* Coloca o shimmer acima do background, mas abaixo do conteúdo real */
+}
+
+/* Ajuste do shimmer para o modo escuro */
+.dark .upgrade-button-shimmer::before {
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 50%, /* Brilho ainda mais sutil para o modo escuro */
+    transparent 100%
+  );
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%); /* Move o brilho através do botão e para fora da tela */
+  }
+}
+
