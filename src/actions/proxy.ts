@@ -7,12 +7,12 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { db } from "@/db";
-import { proxiesTables } from "@/db/schema";
+import { NewProxy, proxiesTables } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 export interface ProxyAssignmentResult {
   success: boolean;
-  proxy?: any;
+  proxy?: any; // Melhorar este tipo para Proxy do schema
   error?: string;
 }
 
@@ -22,11 +22,13 @@ export interface ProxyAssignmentResult {
  * @returns Um objeto com o resultado da operação.
  */
 export async function assignUnusedProxy(instanceName: string): Promise<ProxyAssignmentResult> {
+  // Autenticação removida daqui, pois esta função será chamada internamente por outras Server Actions
+  // que já lidam com autenticação ou por um webhook que terá sua própria autenticação (secret).
+  // Se esta função for chamada diretamente do cliente, adicione a autenticação de volta.
+
   try {
-    // Usamos uma transação para garantir que a operação seja atômica:
-    // encontrar E atualizar o proxy em uma única operação lógica.
     const result = await db.transaction(async (tx) => {
-      // Encontra o primeiro proxy não utilizado
+      // Encontra o primeiro proxy não utilizado e não atribuído
       const [unusedProxy] = await tx
         .select()
         .from(proxiesTables)
@@ -34,8 +36,7 @@ export async function assignUnusedProxy(instanceName: string): Promise<ProxyAssi
         .limit(1);
 
       if (!unusedProxy) {
-        // Se não houver proxies disponíveis, faz rollback da transação
-        throw new Error("Nenhum proxy não utilizado disponível.");
+        return { success: false, error: "Nenhum proxy não utilizado disponível." };
       }
 
       // Marca o proxy como usado e o associa à instância
@@ -47,17 +48,15 @@ export async function assignUnusedProxy(instanceName: string): Promise<ProxyAssi
           updatedAt: new Date(),
         })
         .where(eq(proxiesTables.id, unusedProxy.id))
-        .returning(); // Retorna o proxy atualizado
+        .returning();
 
       if (!updatedProxy) {
-        // Se a atualização falhar por algum motivo (ex: outro processo pegou o proxy), faz rollback
-        throw new Error("Falha ao marcar o proxy como usado.");
+        return { success: false, error: "Falha ao marcar o proxy como usado ou proxy já atribuído." };
       }
 
       return { success: true, proxy: updatedProxy };
     });
 
-    // Revalida o cache da página principal do WhatsApp para refletir a mudança
     revalidatePath("/whatsapp");
 
     return result;
@@ -77,6 +76,7 @@ export async function assignUnusedProxy(instanceName: string): Promise<ProxyAssi
  * @returns Um objeto com o resultado da operação.
  */
 export async function releaseProxy(instanceName: string): Promise<{ success: boolean; error?: string }> {
+  // Autenticação removida por ser chamada internamente
   try {
     const [updated] = await db
       .update(proxiesTables)
@@ -104,28 +104,31 @@ export async function releaseProxy(instanceName: string): Promise<{ success: boo
  * Popula o banco de dados com a lista de proxies fornecida
  * @param proxies Array de objetos com dados dos proxies
  */
-export async function populateProxies(proxies: Array<{
+export async function populateProxies(proxiesData: Array<{
   host: string;
   port: string;
   username: string;
   password: string;
 }>) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session?.user) {
+    redirect("/authentication");
+  }
+
+  // Apenas admins podem popular proxies, por exemplo
+  // if (session.user.role !== "admin" && session.user.role !== "superadmin") {
+  //   return { success: false, error: "Não autorizado." };
+  // }
+
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session?.user) {
-      redirect("/authentication");
-    }
-
-    // Verifica se o usuário é admin
-    if (session.user.role !== "admin" && session.user.role !== "superadmin") {
-      return { success: false, error: "Acesso negado. Apenas administradores podem executar esta ação." };
-    }
-
-    const proxiesToInsert = proxies.map((proxy, index) => ({
-      id: `proxy_${Date.now()}_${index}`,
+    const proxiesToInsert: NewProxy[] = proxiesData.map((proxy) => ({
+      // Se o schema usar serial, o ID será auto-gerado.
+      // Se o schema usar text, você precisará garantir a unicidade aqui,
+      // por exemplo, usando um UUID ou um hash do host:port.
+      id: crypto.randomUUID(), // Gera um UUID para o campo id, necessário para o tipo NewProxy
       host: proxy.host,
       port: proxy.port,
       username: proxy.username,
@@ -134,15 +137,17 @@ export async function populateProxies(proxies: Array<{
       isUsed: false,
       assignedInstanceName: null,
       isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     }));
 
-    await db.insert(proxiesTables).values(proxiesToInsert);
+    const batchSize = 500;
+    for (let i = 0; i < proxiesToInsert.length; i += batchSize) {
+      const batch = proxiesToInsert.slice(i, i + batchSize);
+      await db.insert(proxiesTables).values(batch);
+    }
 
     return {
       success: true,
-      message: `${proxies.length} proxies foram adicionados com sucesso.`
+      message: `${proxiesData.length} proxies foram adicionados com sucesso.`
     };
   } catch (error: any) {
     console.error("Erro ao popular proxies:", error);
@@ -157,6 +162,14 @@ export async function populateProxies(proxies: Array<{
  * Obtém estatísticas dos proxies
  */
 export async function getProxyStats() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session?.user) {
+    redirect("/authentication");
+  }
+
   try {
     const totalProxies = await db
       .select({ count: proxiesTables.id })
@@ -171,7 +184,7 @@ export async function getProxyStats() {
     const availableProxies = await db
       .select({ count: proxiesTables.id })
       .from(proxiesTables)
-      .where(and(eq(proxiesTables.isUsed, false), eq(proxiesTables.isActive, true)));
+      .where(and(eq(proxiesTables.isUsed, false), isNull(proxiesTables.assignedInstanceName), eq(proxiesTables.isActive, true)));
 
     return {
       success: true,

@@ -10,6 +10,7 @@ import { db } from "@/db";
 import { instancesTables } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
+// Função auxiliar para chamar a Evolution API
 async function fetchEvolutionApi(
   method: string,
   path: string,
@@ -19,6 +20,7 @@ async function fetchEvolutionApi(
   const API_KEY = process.env.GLOBAL_API_KEY;
 
   if (!API_DOMAIN || !API_KEY) {
+    console.error("Evolution API domain or key not configured.");
     throw new Error("Evolution API domain or key not configured.");
   }
 
@@ -37,28 +39,28 @@ async function fetchEvolutionApi(
 
   try {
     const response = await fetch(url, options);
-    const data = await response.json();
+    const text = await response.text(); // Lê a resposta como texto
+    const data = text ? JSON.parse(text) : null; // Tenta parsear se não for vazio
 
     if (!response.ok) {
       console.error(
-        `API Error (${response.status} ${response.statusText}):`,
+        `API Error (${response.status} ${response.statusText}) for ${url}:`,
         data,
       );
-      throw new Error(data.message || `API error: ${response.statusText}`);
+      throw new Error(data?.message || `API error: ${response.statusText}`);
     }
     return data;
   } catch (error: any) {
-    console.error("Error calling Evolution API:", error);
+    console.error(`Error calling Evolution API at ${url}:`, error);
     throw new Error(`Failed to connect to API: ${error.message}`);
   }
 }
 
-// Novo tipo para detalhes do proxy
 export type ProxyDetails = {
   enabled: boolean;
-  host?: string; // Tornar opcional, pois pode não ser enviado se enabled for false
-  port?: string; // Tornar opcional
-  protocol?: "http" | "https" | "socks4" | "socks5"; // Tornar opcional
+  host?: string;
+  port?: string;
+  protocol?: "http" | "https" | "socks4" | "socks5";
   username?: string;
   password?: string;
 };
@@ -81,7 +83,6 @@ export async function setInstanceProxy({
   const userId = session.user.id;
 
   try {
-    // Primeiro, verifique se a instância existe no seu DB e pertence ao usuário logado
     const instance = await db.query.instancesTables.findFirst({
       where: and(
         eq(instancesTables.instanceName, instanceName),
@@ -96,21 +97,27 @@ export async function setInstanceProxy({
       };
     }
 
-    // A API espera que 'port' seja uma string, mas o tipo ProxyDetails usa string.
-    // Certifique-se de que a porta seja uma string se for um número.
-    const bodyToSend = {
-      ...proxyDetails,
-      port: proxyDetails.port ? String(proxyDetails.port) : undefined,
-    };
+    // CORREÇÃO AQUI: O corpo da requisição deve ser o próprio objeto proxyDetails
+    // se enabled for true, ou { enabled: false } se for para desativar.
+    const bodyToSend = proxyDetails.enabled
+      ? {
+        enabled: true, // Garante que enabled é true se estamos enviando detalhes
+        host: proxyDetails.host,
+        port: proxyDetails.port,
+        protocol: proxyDetails.protocol,
+        username: proxyDetails.username,
+        password: proxyDetails.password,
+      }
+      : { enabled: false }; // Para desativar o proxy
 
-    // Chame a Evolution API para configurar o proxy
-    await fetchEvolutionApi("POST", `/proxy/set/${instanceName}`, bodyToSend);
+    const apiPath = `/proxy/set/${instanceName}`;
+    await fetchEvolutionApi("POST", apiPath, bodyToSend);
 
     revalidatePath("/whatsapp/instancia");
 
     return { success: true, message: "Proxy configurado com sucesso!" };
   } catch (error: any) {
-    console.error("Erro ao configurar proxy:", error);
+    console.error(`Erro ao configurar proxy para instância ${instanceName}:`, error);
     return {
       success: false,
       error: error.message || "Erro desconhecido ao configurar proxy.",
@@ -134,7 +141,6 @@ export async function findInstanceProxy({
   const userId = session.user.id;
 
   try {
-    // Primeiro, verifique se a instância existe no DB e pertence ao usuário logado
     const instance = await db.query.instancesTables.findFirst({
       where: and(
         eq(instancesTables.instanceName, instanceName),
@@ -154,9 +160,10 @@ export async function findInstanceProxy({
       `/proxy/find/${instanceName}`,
     );
 
+    // apiResponse pode ser null ou um objeto como { enabled: false } ou { enabled: true, ... }
     return { success: true, proxy: apiResponse };
   } catch (error: any) {
-    console.error("Erro ao buscar proxy:", error);
+    console.error(`Erro ao buscar proxy para instância ${instanceName}:`, error);
     return {
       success: false,
       error: error.message || "Erro desconhecido ao buscar proxy.",

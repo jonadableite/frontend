@@ -1,14 +1,16 @@
 // src/actions/instance/connection-status.ts
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { setInstanceProxy } from "@/actions/instance";
-import { assignUnusedProxy, releaseProxy } from "@/actions/proxy";
+// Certifique-se de que o caminho para setInstanceProxy e ProxyDetails está correto se ainda forem usados diretamente
+// import { setInstanceProxy } from "@/actions/instance/proxy-instance";
+import { handleAutomaticProxyAssignment } from "@/actions/instance/handle-proxy-assignment"; // NOVO IMPORT
+import { releaseProxy } from "@/actions/proxy"; // Manter para liberar proxy em caso de desconexão
 import { db } from "@/db";
 import { instancesTables } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -20,6 +22,50 @@ const GLOBAL_API_KEY = process.env.GLOBAL_API_KEY;
 if (!EVOLUTION_API_BASE_URL || !GLOBAL_API_KEY) {
   console.error("EVOLUTION_API_BASE_URL ou GLOBAL_API_KEY não configurados.");
 }
+
+// Função auxiliar para chamar a Evolution API (padronizada)
+async function fetchEvolutionApi(
+  method: string,
+  path: string,
+  body?: any,
+): Promise<any> {
+  if (!EVOLUTION_API_BASE_URL || !GLOBAL_API_KEY) {
+    console.error("EVOLUTION_API_BASE_URL ou GLOBAL_API_KEY não configurados.");
+    throw new Error("Evolution API domain or key not configured.");
+  }
+
+  const url = `${EVOLUTION_API_BASE_URL}${path}`;
+  const headers = {
+    "Content-Type": "application/json",
+    apikey: GLOBAL_API_KEY,
+  };
+
+  const options: RequestInit = {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+  };
+
+  try {
+    const response = await fetch(url, options);
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : null;
+
+    if (!response.ok) {
+      console.error(
+        `API Error (${response.status} ${response.statusText}) for ${url}:`,
+        data,
+      );
+      throw new Error(data?.message || `API error: ${response.statusText}`);
+    }
+    return data;
+  } catch (error: any) {
+    console.error(`Error calling Evolution API at ${url}:`, error);
+    throw new Error(`Failed to connect to API: ${error.message}`);
+  }
+}
+
 
 type GetInstanceStatusInput = z.infer<typeof InstanceNameSchema>;
 
@@ -34,7 +80,6 @@ export async function getInstanceStatus(input: GetInstanceStatusInput) {
 
   const userId = session.user.id;
 
-  // Validação com Zod
   const validationResult = InstanceNameSchema.safeParse(input);
 
   if (!validationResult.success) {
@@ -49,11 +94,11 @@ export async function getInstanceStatus(input: GetInstanceStatusInput) {
 
   const { instanceName } = validationResult.data;
 
-  // Verificar se a instância pertence ao usuário logado
   const instance = await db.query.instancesTables.findFirst({
-    where:
-      eq(instancesTables.userId, userId) &&
+    where: and(
+      eq(instancesTables.userId, userId),
       eq(instancesTables.instanceName, instanceName),
+    ),
   });
 
   if (!instance) {
@@ -68,48 +113,17 @@ export async function getInstanceStatus(input: GetInstanceStatusInput) {
       `[getInstanceStatus] Chamando API para status de ${instanceName}...`,
     );
 
-    const apiResponse = await fetch(
-      `${EVOLUTION_API_BASE_URL}/instance/connectionState/${instanceName}`,
-      {
-        method: "GET",
-        headers: {
-          apikey: GLOBAL_API_KEY!,
-        },
-        cache: "no-store",
-      },
+    const apiResponse = await fetchEvolutionApi(
+      "GET",
+      `/instance/connectionState/${instanceName}`,
     );
 
-    if (!apiResponse.ok) {
-      const errorData = await apiResponse.json();
-      console.error(
-        `[getInstanceStatus] Erro na resposta da API para ${instanceName}:`,
-        apiResponse.status,
-        errorData,
-      );
-
-      await db
-        .update(instancesTables)
-        .set({ status: "unknown", updatedAt: new Date() })
-        .where(eq(instancesTables.instanceId, instance.instanceId));
-      revalidatePath("/whatsapp/instancia");
-
-      return {
-        error: errorData.message || "Erro ao buscar status da instância.",
-      };
-    }
-
-    const statusData = await apiResponse.json();
-    console.log(
-      `[getInstanceStatus] Dados de status recebidos da API para ${instanceName}:`,
-      statusData,
-    );
-
-    const newStatus = statusData.instance?.state;
+    const newStatus = apiResponse.instance?.state;
 
     if (typeof newStatus !== "string") {
       console.warn(
         `[getInstanceStatus] Propriedade 'instance.state' não encontrada ou não é string na resposta da API para ${instanceName}. Dados recebidos:`,
-        statusData,
+        apiResponse,
       );
 
       await db
@@ -126,7 +140,6 @@ export async function getInstanceStatus(input: GetInstanceStatusInput) {
       `[getInstanceStatus] Atualizando DB para ${instanceName} com status: ${newStatus}`,
     );
 
-    // Atualizar o status no banco de dados SOMENTE se for diferente
     if (instance.status !== newStatus) {
       await db
         .update(instancesTables)
@@ -135,94 +148,12 @@ export async function getInstanceStatus(input: GetInstanceStatusInput) {
       revalidatePath("/whatsapp");
     }
 
-    // LÓGICA DE ATRIBUIÇÃO AUTOMÁTICA DE PROXY
-    // Se o status for "open" e a instância não tiver proxy configurado, atribuir automaticamente
+    // LÓGICA DE ATRIBUIÇÃO AUTOMÁTICA DE PROXY (agora usando a função auxiliar)
     if (newStatus === "open") {
-      console.log(
-        `[getInstanceStatus] Instância ${instanceName} está conectada. Verificando se precisa de proxy...`,
-      );
-
-      try {
-        // Verificar se a instância já tem proxy configurado
-        const proxyResponse = await fetch(
-          `${EVOLUTION_API_BASE_URL}/proxy/find/${instanceName}`,
-          {
-            method: "GET",
-            headers: {
-              apikey: GLOBAL_API_KEY!,
-            },
-            cache: "no-store",
-          },
-        );
-
-        if (proxyResponse.ok) {
-          const proxyData = await proxyResponse.json();
-
-          // Se não há proxy configurado ou está desabilitado, atribuir um novo
-          if (!proxyData.enabled) {
-            console.log(
-              `[getInstanceStatus] Instância ${instanceName} não tem proxy configurado. Atribuindo automaticamente...`,
-            );
-
-            // Atribuir proxy não utilizado
-            const proxyAssignment = await assignUnusedProxy(instanceName);
-
-            if (proxyAssignment.success && proxyAssignment.proxy) {
-              console.log(
-                `[getInstanceStatus] Proxy atribuído com sucesso para ${instanceName}:`,
-                proxyAssignment.proxy,
-              );
-
-              // Configurar o proxy na Evolution API
-              const proxyDetails = {
-                enabled: true,
-                host: proxyAssignment.proxy.host,
-                port: proxyAssignment.proxy.port,
-                protocol: proxyAssignment.proxy.protocol,
-                username: proxyAssignment.proxy.username,
-                password: proxyAssignment.proxy.password,
-              };
-
-              const setProxyResult = await setInstanceProxy({
-                instanceName,
-                proxyDetails,
-              });
-
-              if (setProxyResult.success) {
-                console.log(
-                  `[getInstanceStatus] Proxy configurado com sucesso na Evolution API para ${instanceName}`,
-                );
-              } else {
-                console.error(
-                  `[getInstanceStatus] Erro ao configurar proxy na Evolution API para ${instanceName}:`,
-                  setProxyResult.error,
-                );
-
-                // Se falhar ao configurar na API, liberar o proxy
-                await releaseProxy(instanceName);
-              }
-            } else {
-              console.warn(
-                `[getInstanceStatus] Não foi possível atribuir proxy para ${instanceName}:`,
-                proxyAssignment.error,
-              );
-            }
-          } else {
-            console.log(
-              `[getInstanceStatus] Instância ${instanceName} já tem proxy configurado.`,
-            );
-          }
-        } else {
-          console.warn(
-            `[getInstanceStatus] Não foi possível verificar proxy da instância ${instanceName}.`,
-          );
-        }
-      } catch (proxyError) {
-        console.error(
-          `[getInstanceStatus] Erro ao verificar/configurar proxy para ${instanceName}:`,
-          proxyError,
-        );
-      }
+      await handleAutomaticProxyAssignment(instanceName); // Chamada da nova função
+    } else if (newStatus === "close" || newStatus === "disconnected") {
+      // Se a instância desconectou, liberar o proxy
+      await releaseProxy(instanceName);
     }
 
     const returnObject = { success: true, status: newStatus };
@@ -231,7 +162,7 @@ export async function getInstanceStatus(input: GetInstanceStatusInput) {
       returnObject,
     );
     return returnObject;
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       `[getInstanceStatus] Erro inesperado ao buscar status da instância ${instanceName}:`,
       error,
